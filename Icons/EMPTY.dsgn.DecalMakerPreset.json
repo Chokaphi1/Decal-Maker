@@ -1,0 +1,48 @@
+{ 
+   "id" : "plugin#0_VAM_Decal_Maker.Decal_Maker", 
+   "enabled" : "true", 
+   "Nipple Cutouts ON" : "True", 
+   "Genital Cutouts ON" : "True", 
+   "pluginLabel" : "", 
+   "SaveVersion" : "1", 
+   "Decal" : { 
+      "torso" : [ 
+      ], 
+      "genitals" : [ 
+      ], 
+      "face" : [ 
+      ], 
+      "limbs" : [ 
+      ]
+   }, 
+   "Specular" : { 
+      "torso" : [ 
+      ], 
+      "genitals" : [ 
+      ], 
+      "face" : [ 
+      ], 
+      "limbs" : [ 
+      ]
+   }, 
+   "Gloss" : { 
+      "torso" : [ 
+      ], 
+      "genitals" : [ 
+      ], 
+      "face" : [ 
+      ], 
+      "limbs" : [ 
+      ]
+   }, 
+   "Normal" : { 
+      "torso" : [ 
+      ], 
+      "genitals" : [ 
+      ], 
+      "face" : [ 
+      ], 
+      "limbs" : [ 
+      ]
+   }
+}
