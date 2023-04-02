@@ -1,10 +1,10 @@
-﻿using MVR.FileManagementSecure;
+﻿using MeshVR;
+using MVR.FileManagementSecure;
 using SimpleJSON;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 using static VAM_Decal_Maker.PathHelper;
 
 namespace VAM_Decal_Maker
@@ -12,11 +12,10 @@ namespace VAM_Decal_Maker
     public class Decal_Maker : MVRScript
     {
         private const string pluginName = "DecalMaker";
-        private const string pluginVersion = "Beta 11";
+        private const string pluginVersion = "RC 3";
 
         //person script is attatched too
         private Atom _parentAtom; //VAM parent
-        private Atom _shaderAtom; //Obj holding shader
         private bool _SetupFinished = false;
         private bool _ShadersLoaded = false;
         private bool _SetupError = false;
@@ -44,13 +43,15 @@ namespace VAM_Decal_Maker
         public Action OnUpDateAction;
         public Action OnDestroyAction;
         //A public event for listeners to subscribe to
+        //Note that by using the generic EventHandler<T> event type
+        //we do not need to declare a separate delegate type.
         public event EventHandler<PanelEventArgs> CoreEvent;
         //delegate to get saveJSON from DecalManager
         public delegate JSONArray GetJSONSaveDelegate(string MaterialSlot, string TextureSlot);
         public GetJSONSaveDelegate GetJSONDelegate;
 
 
-      public bool _isMale;
+        public bool _isMale;
         public string _uvSetName;
 
         //UI
@@ -67,8 +68,9 @@ namespace VAM_Decal_Maker
         private HeaderPanel _headerPanel;
         //GenitalMaker _genitalMakerPanel;
 
-        private bool _Debug = false;
-        
+
+        private readonly bool _Debug = false;
+
         public void ToggleGensCallBack(bool value)
         {
             OnCoreChange(this, new PanelEventArgs(EventEnum.ToggleGenitalCutout, value));
@@ -93,7 +95,13 @@ namespace VAM_Decal_Maker
 
                 //setup all values before finishing UI
                 StartCoroutine(CharacterChanged());
-                StartCoroutine(CreateAssetAtom("Chokpahi-Asset", "Chokpahi-Asset"));
+                //use vam's built in loader for assets then load shader from bundle instead of smuggling them in as a unity Atom
+                AssetLoader.AssetBundleFromFileRequest req = new AssetLoader.AssetBundleFromFileRequest()
+                {
+                    path = "Custom/Scripts/Chokaphi/VAM_Decal_Maker/Icons/chokpahi-decal.assetbundle",
+                    callback = LoadAssetBundle,
+                };
+                AssetLoader.QueueLoadAssetBundleFromFile(req);
 
                 _clearAllButton = CreateButton("Clear Everything");
                 _prefabButton = CreateButton("USE Prefab", true);
@@ -121,6 +129,9 @@ namespace VAM_Decal_Maker
                 RegisterBool(_toggleGenitalCutout);
                 GetBoolJSONParam("Nipple Cutouts ON");
 
+                JSONStorableUrl lastImagePath = new JSONStorableUrl("LastImageDir", "Custom/Atom/Person/Textures");
+                RegisterUrl(lastImagePath);
+                lastImagePath.isStorable = false;
                 //assign listners
                 _clearAllButton.button.onClick.AddListener(ResetAll);
 
@@ -144,25 +155,13 @@ namespace VAM_Decal_Maker
                     SuperController.singleton.fileBrowserUI.SetTextEntry(true);
                     SuperController.singleton.fileBrowserUI.hideExtension = true;
                     SuperController.singleton.fileBrowserUI.shortCuts = new List<ShortCut>();
-                    SuperController.singleton.fileBrowserUI.Show(SavePresetCallback);                  
+                    SuperController.singleton.fileBrowserUI.Show(SavePresetCallback);
                 });
 
                 _loadPresetButton.button.onClick.AddListener(() =>
-                {
-                    //Stupid hack to force browserUI to update and show recently saved presets
-                    SuperController.singleton.fileBrowserUI.GotoDirectory(presetsPath, null, true);
-
-                    string presets = "Custom/Scripts/Chokaphi/VAM_Decal_Maker/Presets";
-
-                    SuperController.singleton.fileBrowserUI.defaultPath = presets;
-                    SuperController.singleton.fileBrowserUI.SetTitle("Select Load Decal Preset");
-                    SuperController.singleton.fileBrowserUI.showFiles = true;
-                    SuperController.singleton.fileBrowserUI.showDirs = true;
-                    SuperController.singleton.fileBrowserUI.SetTextEntry(false);
-                    SuperController.singleton.fileBrowserUI.hideExtension = true;
-                    List<ShortCut> shortCuts = FileManagerSecure.GetShortCutsForDirectory("Custom/Scripts/Chokaphi/VAM_Decal_Maker/Presets", false, true, true, false);
-                    SuperController.singleton.fileBrowserUI.shortCuts = shortCuts;
-                    SuperController.singleton.fileBrowserUI.Show(PresetLoadCallBack);
+                {   //update for 1.21 to use the existing preset dialog system
+                    List<ShortCut> shortCuts = FileManagerSecure.GetShortCutsForDirectory(presetsPath, false, true, true, false);
+                    SuperController.singleton.GetMediaPathDialog(PresetLoadCallBack, "json", presetsPath, false, true, false, null, true, shortCuts, true, true);
                 });
 
                 //legacy storables some addon may use
@@ -183,8 +182,7 @@ namespace VAM_Decal_Maker
         public Texture2D GetResource(string path, bool linear = false)
         {
             string cachepath = path + linear.ToString();
-            Texture2D texture;
-            if (resourceTextures.TryGetValue(cachepath, out texture))
+            if (resourceTextures.TryGetValue(cachepath, out Texture2D texture))
             {
                 return texture;
             }
@@ -214,75 +212,20 @@ namespace VAM_Decal_Maker
 
             //FileManagerSecure.WriteAllBytes(path, bytes);
         }
-
-        //"project-canyon12/05/2018 DISCORD"
-        //"I'm going on how I understand Async/Await works in normal C#, but I think the principle is the same"
-        //tweaked for my use case
-        private delegate void AtomCreatedEvent(Atom atom);
-        private IEnumerator CreateAssetAtom(string uniqueAtomName, string nameOfGameObjectToFind)
+        private void LoadAssetBundle(MeshVR.AssetLoader.AssetBundleFromFileRequest request)
         {
-            //yield return new WaitForSeconds(0.5f);
-
-            Atom createdAtom = GetAtomById(uniqueAtomName);
-            if (createdAtom == null)
+            if (request.assetBundle == null)
             {
-                yield return SuperController.singleton.AddAtomByType("CustomUnityAsset", uniqueAtomName, true);
-
-                createdAtom = GetAtomById(uniqueAtomName);
+                SuperController.LogError("Decal Maker was unable to load chokpahi-decal.assetbundle");
+                return;
             }
 
-            JSONStorable storable = createdAtom.GetStorableByID("asset");
-            //should have always had this toggled. Prevents asset from being stored
-            storable.exclude = true;
-            storable.SetUrlParamValue("assetUrl", GetPackagePath(this) + @"Custom\Assets\Chokaphi\chokpahi-decal.assetbundle");
-            storable.SetStringChooserParamValue("assetName", "Assets/Chokpahi-Decal.unity");
-
-            yield return new WaitWhile(() => GameObject.Find(nameOfGameObjectToFind) == null);
-
-            LogError("Asset loaded");
-            _shaderAtom = createdAtom;
-
-            LogError("Asset Shader loaded " + createdAtom);
-        }
-
-        private void DefineShaders()
-        {
-            Shader[] renderers = Resources.FindObjectsOfTypeAll<Shader>();
-            LogError("Shader setup start. Shaders loaded= " + renderers.Length);
-
-            foreach (Shader shader in renderers)
-            {
-                if (shader.name == "Custom/Unlit-Specular2")
-                {
-                    LogError("ShaderFind " + Shader.Find(shader.name) + " Spec-Gloss Shader is " + shader.name);
-                    _customSpecGlossShader = shader;
-                }
-                if (shader.name == "Custom/Unlit-NormalMap2")
-                {
-                    LogError("ShaderFind " + Shader.Find(shader.name) + " Normal Shader is " + shader.name);
-                    _customNormShader = shader;
-                }
-                if (shader.name == "Custom/Unlit-PackedNormalMap")
-                {
-                    LogError("ShaderFind " + Shader.Find(shader.name) + " PackedNorm Shader is " + shader.name);
-                    _customPackedNormShader = shader;
-                }
-                if (shader.name == "Custom/Unlit-Decal4")
-                {
-                    LogError("ShaderFind " + Shader.Find(shader.name) + " BulkShader Shader is " + shader.name);
-                    _customBulkDecalShader = shader;
-                }
-                if (shader.name == "Custom/UI-NormalMapOverlay")
-                {
-                    LogError("ShaderFind " + Shader.Find(shader.name) + " ui Shader is " + shader.name);
-                    _customUINormalMapShader = shader;
-                }
-                if (shader.name == "Custom/Unlit-GenitalMaker2")
-                {
-                    LogError("ShaderFind " + Shader.Find(shader.name) + " ui Shader is " + shader.name);
-                    _customUIGenitalMakerShader = shader;
-                }
-            }
+            _customSpecGlossShader = request.assetBundle.LoadAsset<Shader>("assets/_shaders/unlit-specular2.shader");
+            _customNormShader = request.assetBundle.LoadAsset<Shader>("assets/_shaders/unlit-normalmap2.shader");
+            _customPackedNormShader = request.assetBundle.LoadAsset<Shader>("assets/_shaders/unlit-packednormalmap.shader");
+            _customBulkDecalShader = request.assetBundle.LoadAsset<Shader>("assets/_shaders/unlit-decal4.shader");
+            _customUINormalMapShader = request.assetBundle.LoadAsset<Shader>("assets/_shaders/custom-ui-normalmapoverlay.shader");
+            _customUIGenitalMakerShader = request.assetBundle.LoadAsset<Shader>("assets/_shaders/unlit-genitalmaker2.shader");
 
             if (_customSpecGlossShader && _customNormShader && _customPackedNormShader && _customBulkDecalShader && _customUINormalMapShader && _customUIGenitalMakerShader)
             {
@@ -316,8 +259,7 @@ namespace VAM_Decal_Maker
 
                 if (_ShadersLoaded == false)
                 {
-                    LogError("On update call waiting on _customBulkDecalShader");
-                    DefineShaders();
+                    LogError("On update call waiting on shaders to load");
                 }
 
                 if (_SetupFinished == false && _ShadersLoaded == true)
@@ -337,23 +279,17 @@ namespace VAM_Decal_Maker
         public void OnCoreChange(object o, PanelEventArgs e)
         {
             //Fire the event - notifying all subscribers
-            if (CoreEvent != null)
-                CoreEvent(o, e);
+            CoreEvent?.Invoke(o, e);
         }
 
         //called on reload or removal of plugin
         public void OnDestroy()
         {
             ResetOriginalGPUTextures(_dazCharacter);
-            if (OnDestroyAction != null)
-                OnDestroyAction();
+            AssetLoader.DoneWithAssetBundleFromFile("Custom/Scripts/Chokaphi/VAM_Decal_Maker/Icons/chokpahi-decal.assetbundle");
+            OnDestroyAction?.Invoke();
         }
 
-        public void a(string p)
-        {
-            SuperController.LogError("PATH IS " + p);
-        }
-      
         private void Setup()
         {
             try
@@ -368,22 +304,118 @@ namespace VAM_Decal_Maker
 
                 //UIDynamicButton NewPanelButton = CreateButton(" LAST LEFT ELEMENT");
 
+                //Shader[] shaders = Resources.FindObjectsOfTypeAll<Shader>();
+                //int step = 0;
+                //Dictionary<string, Material> stockMats = new Dictionary<string, Material>();
                 //NewPanelButton.button.onClick.AddListener(() =>
                 //{
-                //    PrefabCreator creator = new PrefabCreator(this);
-                //    creator.Start("Custom/Scripts/Chokaphi/VAM_Decal_Maker/Presets/PreFabs/VL_13/White/VL 13_VL13 Eyes White_e1.DecalMakerPreset.json", "Custom/Atom/Person/Textures/VL_13 Decal (EyeLine)");
+                //    string[] matNames =  _dazSkin.dazMesh.materialNames;
+                //    //stock shader Custom/Subsurface/GlossNMTessMappedFixedComputeBuff
+
+                //    SuperController.LogError("------------------------------------------------------------");
+                //    if (shaders == null)
+                //        shaders = Resources.FindObjectsOfTypeAll<Shader>();
+
+                //    Shader s = shaders[step];
+
+                //    for (int i = 0; i < matNames.Length; i++)
+                //    {
+                //        string m = matNames[i];
+                //        if (m == "Pupils" || m == "Cornea")
+                //        {
+
+                //            Material n = new Material(s);
+                //            n.CopyPropertiesFromMaterial(stockMats[m]);
+                //            _dazSkin.GPUmaterials[i] = n;
+                //        }
+                //    }
+
+                //    SuperController.LogError(DateTime.Now +" Shader changed to " + step + " " + shaders[step].name + " " + _dazSkin.GPUmaterials[1].HasProperty("_DecalTex"));
+                //    step++;
+
+                //    //SuperController.LogError(count +  $"  {m} " +
+                //    //    " Shader= "+ _dazSkin.GPUmaterials[count].shader.name + " " +
+                //    //    _dazSkin.GPUmaterials[count].HasProperty("_DecalTex")); 
+                //    //;  
+                //    //}
+                //    //@"Custom/Subsurface/GlossNMCullComputeBuff";
+
+
+
+
 
                 //});
+
+                //UIDynamicButton NewPanelButtonBack = CreateButton(" Back");
+
+
+                //NewPanelButtonBack.button.onClick.AddListener(() =>
+                //{
+                //    string[] matNames = _dazSkin.dazMesh.materialNames;
+                //    //stock shader Custom/Subsurface/GlossNMTessMappedFixedComputeBuff
+
+                //    SuperController.LogError("------------------------------------------------------------");
+                //    if (shaders == null)
+                //        shaders = Resources.FindObjectsOfTypeAll<Shader>();
+
+                //    Shader s = shaders[step];
+
+                //    for (int i = 0; i < matNames.Length; i++)
+                //    {
+                //        string m = matNames[i];
+                //        if (m == "Pupils" || m == "Cornea")
+                //        {
+
+                //            Material n = new Material(s);
+                //            n.CopyPropertiesFromMaterial(stockMats[m]);
+                //            _dazSkin.GPUmaterials[i] = n;
+                //        }
+                //    }
+
+                //    SuperController.LogError(DateTime.Now + " Shader changed to " + step + " " + shaders[step].name + " " + _dazSkin.GPUmaterials[1].HasProperty("_DecalTex"));
+                //    step--;
+
+
+                //    //SuperController.LogError(count +  $"  {m} " +
+                //    //    " Shader= "+ _dazSkin.GPUmaterials[count].shader.name + " " +
+                //    //    _dazSkin.GPUmaterials[count].HasProperty("_DecalTex")); 
+                //    //;  
+                //    //}
+                //    //@"Custom/Subsurface/GlossNMCullComputeBuff";
+
+
+
+
+
+                //});
+                ////CORNEA SHADER Custom/Subsurface/TransparentGlossNMSeparateAlphaComputeBuff
+                ////Custom/Subsurface/GlossCullComputeBuff False
+                ////GlossNMDetailCullComputeBuff False
+                ////Custom/Subsurface/TransparentGlossNMNoCullSeparateAlphaComputeBuff False
 
                 //UIDynamicButton UnusedButton2 = CreateButton("LAST RIGHT ELEMENT", true);
                 //UnusedButton2.button.onClick.AddListener(() =>
                 //{
-                //    _parentAtom.tempDisableRender = !_parentAtom.tempDisableRender;
-                //    SuperController.singleton.SyncHiddenAtoms();
+                //    //_parentAtom.tempDisableRender = !_parentAtom.tempDisableRender;
+                //    //SuperController.singleton.SyncHiddenAtoms();
+
+                //    string[] matNames = _dazSkin.dazMesh.materialNames;
+                //    //stock shader Custom/Subsurface/GlossNMTessMappedFixedComputeBuff
+
+                //    for (int i = 0; i < matNames.Length; i++)
+                //    {
+                //        string m = matNames[i];
+                //        if (m == "Pupils" || m == "Cornea")
+                //        {
+                //            stockMats.Add(m, _dazSkin.GPUmaterials[i]);
+                //            SuperController.LogError("Mat name " + _dazSkin.GPUmaterials[i].name + " " + _dazSkin.GPUmaterials[i].mainTexture.name);
+                //        }
+                //    }
+
                 //});
 
-                    //this is hacky but sets the UI to look nice on start.
-                    _prefabButton.button.onClick.Invoke();
+                //this is hacky but sets the UI to look nice on start.
+                _prefabButton.button.onClick.Invoke();
 
                 _SetupFinished = true;
 
@@ -397,7 +429,7 @@ namespace VAM_Decal_Maker
             }
         }
 
-        private void storeGPUMats()
+        private void StoreGPUMats()
         {
             gpuDecalArray = new Texture[_dazSkin.GPUmaterials.Length];
             gpuSpecArray = new Texture[_dazSkin.GPUmaterials.Length];
@@ -425,7 +457,7 @@ namespace VAM_Decal_Maker
             }
 
         }
-        private void restoreGPUMats()
+        private void RestoreGPUMats()
         {   //why not use .GPUmaterials[i] = DazSkinv2.dazMesh.materials[i];
 
             for (int i = 0; i < _dazSkin.GPUmaterials.Length; i++)
@@ -447,7 +479,7 @@ namespace VAM_Decal_Maker
             }
 
         }
- 
+
         public Texture2D GetOriginalGPUTexture(int id, string MaterialSlot)
         {
             switch (MaterialSlot)
@@ -491,18 +523,18 @@ namespace VAM_Decal_Maker
             }
         }
         public void QueueCharacterChanged()
-        {   
+        {
             if (_processingCharacterChange)
             {
                 return;
             }
-            _processingCharacterChange = true;   
+            _processingCharacterChange = true;
             StartCoroutine(CharacterUpdated(false));
         }
 
         private IEnumerator CharacterUpdated(bool newCharacter = false)
         {
-            if(!newCharacter)
+            if (!newCharacter)
                 yield return new WaitForSeconds(1);
             LogError("CharacterUpdated");
 
@@ -513,7 +545,7 @@ namespace VAM_Decal_Maker
 
             //should store the current skin textures.
             LogError("STORE Current Skin Textures");
-            storeGPUMats();
+            StoreGPUMats();
 
             OnCoreChange(this, new PanelEventArgs(EventEnum.CoreNewCharacterSelected, newCharacter));
             _processingCharacterChange = false;
@@ -547,7 +579,7 @@ namespace VAM_Decal_Maker
                 PerformLoad(_savedData);
                 _savedData = null;
             }
-           
+
             _processingCharacterChange = false;
         }
 
@@ -564,14 +596,14 @@ namespace VAM_Decal_Maker
                 if (dAZCharacter == null || _dazSkin == null)
                     return;
 
-                 restoreGPUMats();
+                RestoreGPUMats();
             }
             catch (Exception e)
             {
                 SuperController.LogError("Decal Maker: Error resetting custom textures " + e);
             }
         }
-       
+
         private void ResetAll()
         {
             ResetOriginalGPUTextures(_dazCharacter);
@@ -600,7 +632,7 @@ namespace VAM_Decal_Maker
             JSONClass json = GetJSON();
             path = path.Replace(".dsgn.DecalMakerPreset", "");
             path = path.Replace(".DecalMakerPreset", "");
-            path = path + ".DecalMakerPreset.json";
+            path += ".DecalMakerPreset.json";
             this.SaveJSON(json, path);
             SuperController.singleton.DoSaveScreenshot(path);
             //if(autoScreenShot)
@@ -752,6 +784,6 @@ namespace VAM_Decal_Maker
     }
 
     #endregion
-    
+
 }
 
