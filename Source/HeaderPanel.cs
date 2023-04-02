@@ -10,11 +10,21 @@ namespace VAM_Decal_Maker
         public SelectionPanel SelectionPanelSpec { get; private set; }
         public SelectionPanel SelectionPanelGloss { get; private set; }
         public SelectionPanel SelectionPanelNorm { get; private set; }
+        public SelectionPanel SelectionPanelDecalEye { get; private set; }
+        public SelectionPanel SelectionPanelSpecEye { get; private set; }
+        public SelectionPanel SelectionPanelGlossEye { get; private set; }
+        public SelectionPanel SelectionPanelNormEye { get; private set; }
+
         public MyButton decalButton { get; private set; }
         public MyButton specButton { get; private set; }
         public MyButton glossButton { get; private set; }
         public MyButton normButton { get; private set; }
-        public MyButton previewButton { get; private set; }
+
+        public MyButton eyedecalButton { get; private set; }
+        public MyButton eyespecButton { get; private set; }
+        public MyButton eyeglossButton { get; private set; }
+        public MyButton eyenormButton { get; private set; }
+        public MyButton eyesButton { get; private set; }
         public Dictionary<string, SelectionPanel> selectionPanels { get; private set; }
 
         private List<MyButton> buttons;
@@ -29,7 +39,7 @@ namespace VAM_Decal_Maker
                     break;
                 //once setup is finished set Decal as active panel
                 case EventEnum.CoreSetupFinished:
-                    DM.OnCoreChange(decalButton, new PanelEventArgs(EventEnum.HeaderPanelSelection, SelectionPanelDecal));
+                    RaiseCoreEvent(decalButton, new PanelEventArgs(EventEnum.HeaderPanelSelection, SelectionPanelDecal));
                     break;
             }
         }
@@ -101,20 +111,96 @@ namespace VAM_Decal_Maker
                 PanelName = MaterialSlot
             };
 
+            //EYES
+
+            SelectionPanelDecalEye = new SelectionPanel(1050, 300, new Color(1, 1, 1, 1f), DM)
+            {
+                MaterialSlot = MatSlotEnum.DecalTex,
+                IsNormalMap = false,
+                linear = false,
+
+                PanelName = MaterialSlot
+            };
+
+            SelectionPanelSpecEye = new SelectionPanel(1050, 300, new Color(1, 1, 1, 1f), DM)
+            {
+                MaterialSlot = MatSlotEnum.SpecTex,
+                IsNormalMap = false,
+                linear = true,
+
+                PanelName = MaterialSlot
+            };
+
+
+            SelectionPanelGlossEye = new SelectionPanel(1050, 300, new Color(1, 1, 1, 1f), DM)
+            {
+                MaterialSlot = MatSlotEnum.GlossTex,
+                IsNormalMap = false,
+                linear = true,
+
+                PanelName = MaterialSlot
+            };
+
+            SelectionPanelNormEye = new SelectionPanel(1050, 300, new Color(1, 1, 1, 1f), DM)
+            {
+                MaterialSlot = MatSlotEnum.BumpMap,
+                IsNormalMap = true,
+                linear = true,
+
+                PanelName = MaterialSlot
+            };
+
+
             decalButton = new MyButton("Decal", new Color(1, 0.3f, 0.4f), transform);
-            decalButton.button.onClick.AddListener(() => DM.OnCoreChange(decalButton, new PanelEventArgs(EventEnum.HeaderPanelSelection, SelectionPanelDecal)));
+            decalButton.button.onClick.AddListener(() => RaiseCoreEvent(decalButton, new PanelEventArgs(EventEnum.HeaderPanelSelection, SelectionPanelDecal)));
 
             specButton = new MyButton("Specular", new Color(0.95f, 0.25f, 0.91f), transform);
-            specButton.button.onClick.AddListener(() => DM.OnCoreChange(specButton, new PanelEventArgs(EventEnum.HeaderPanelSelection, SelectionPanelSpec)));
+            specButton.button.onClick.AddListener(() => RaiseCoreEvent(specButton, new PanelEventArgs(EventEnum.HeaderPanelSelection, SelectionPanelSpec)));
 
             glossButton = new MyButton("Gloss", new Color(0.2f, .98f, 0.2f), transform);
-            glossButton.button.onClick.AddListener(() => DM.OnCoreChange(glossButton, new PanelEventArgs(EventEnum.HeaderPanelSelection, SelectionPanelGloss)));
+            glossButton.button.onClick.AddListener(() => RaiseCoreEvent(glossButton, new PanelEventArgs(EventEnum.HeaderPanelSelection, SelectionPanelGloss)));
 
             normButton = new MyButton("Normal", new Color(0.2f, 0.9f, .9f), transform);
-            normButton.button.onClick.AddListener(() => DM.OnCoreChange(normButton, new PanelEventArgs(EventEnum.HeaderPanelSelection, SelectionPanelNorm)));
+            normButton.button.onClick.AddListener(() => RaiseCoreEvent(normButton, new PanelEventArgs(EventEnum.HeaderPanelSelection, SelectionPanelNorm)));
 
+            eyedecalButton = new MyButton("EyeDecal", new Color(1, 0.3f, 0.4f), transform);
+            eyedecalButton.button.onClick.AddListener(() => RaiseCoreEvent(decalButton, new PanelEventArgs(EventEnum.HeaderPanelSelection, SelectionPanelDecalEye)));
+            eyedecalButton.gameObject.SetActive(false);
 
-            buttons = new List<MyButton>() { decalButton, specButton, glossButton, normButton };
+            eyespecButton = new MyButton("EyeSpecular", new Color(0.95f, 0.25f, 0.91f), transform);
+            eyespecButton.button.onClick.AddListener(() => RaiseCoreEvent(specButton, new PanelEventArgs(EventEnum.HeaderPanelSelection, SelectionPanelSpecEye)));
+            eyespecButton.gameObject.SetActive(false);
+
+            eyeglossButton = new MyButton("EyeGloss", new Color(0.2f, .98f, 0.2f), transform);
+            eyeglossButton.button.onClick.AddListener(() => RaiseCoreEvent(glossButton, new PanelEventArgs(EventEnum.HeaderPanelSelection, SelectionPanelGlossEye)));
+            eyeglossButton.gameObject.SetActive(false);
+
+            eyenormButton = new MyButton("EyeNormal", new Color(0.2f, 0.9f, .9f), transform);
+            eyenormButton.button.onClick.AddListener(() => RaiseCoreEvent(normButton, new PanelEventArgs(EventEnum.HeaderPanelSelection, SelectionPanelNormEye)));
+            eyenormButton.gameObject.SetActive(false);
+
+            buttons = new List<MyButton>() { decalButton, specButton, glossButton, normButton, eyedecalButton, eyeglossButton, eyenormButton, eyespecButton };
+
+            eyesButton = new MyButton("Eyes Toggle", new Color(0.2f, 0.8f, .6f), transform);
+
+            bool eyesActive = false;
+            eyesButton.button.onClick.AddListener(() =>
+            {
+                foreach (MyButton button in buttons)
+                {
+                    button.gameObject.SetActive(!button.gameObject.activeSelf);
+                }
+                eyesActive = !eyesActive;
+                if (eyesActive)
+                {
+                    RaiseCoreEvent(eyedecalButton, new PanelEventArgs(EventEnum.HeaderPanelSelection, SelectionPanelDecalEye));
+                }
+                else
+                {
+                    RaiseCoreEvent(decalButton, new PanelEventArgs(EventEnum.HeaderPanelSelection, SelectionPanelDecal));
+                }
+            });
+
 
 
             //now finalize panels
@@ -123,11 +209,15 @@ namespace VAM_Decal_Maker
             SelectionPanelGloss.CreateManagerPanels();
             SelectionPanelNorm.CreateManagerPanels();
 
-
             SelectionPanelDecal.PanelName = "Decal";
             SelectionPanelSpec.PanelName = "Specular";
             SelectionPanelGloss.PanelName = "Gloss";
             SelectionPanelNorm.PanelName = "Normal";
+
+            SelectionPanelDecalEye.CreateManagerEyePanels();
+            SelectionPanelSpecEye.CreateManagerEyePanels();
+            SelectionPanelGlossEye.CreateManagerEyePanels();
+            SelectionPanelNormEye.CreateManagerEyePanels();
 
 
             ActivePanel = SelectionPanelDecal;

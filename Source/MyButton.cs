@@ -31,14 +31,26 @@ namespace VAM_Decal_Maker
             }
         }
 
-        public MyButton(string label = "Button", Color? color = null, Transform parent = null)
+        public MyButton(string label, Color color, Transform parent, Vector3 offset, Vector2 sizeDelta)
         {
-            if(parent != null)
-                transform.SetParent(parent,false);
+            CreateButton(label, color, parent, offset, sizeDelta);
+        }
 
-            //transform = gameObject.transform;
+        public MyButton(string label, Color color, Transform parent)
+        {
+            CreateButton(label, color, parent, Vector3.zero, new Vector2(160, 30));
+        }
+        private void CreateButton(string label, Color color, Transform parent, Vector3 offset, Vector2 sizeDelta)
+        {
+            if (parent != null)
+            {
+                transform.SetParent(parent, false);
+                transform.localPosition = offset;
+            }
+
             RectTransform rt = gameObject.AddComponent<RectTransform>();
-            rt.sizeDelta = new Vector2(160, 30);
+            rt.sizeDelta = sizeDelta;
+
 
             GameObject textGO = new GameObject("Text");
             textGO.transform.SetParent(gameObject.transform, false);
@@ -60,7 +72,7 @@ namespace VAM_Decal_Maker
             image.material = new Material(Shader.Find("UI/Default-Overlay"));
             //image.color = color ?? Color.green;
 
-            normalColor = color ?? new Color(0.6f, 0, 0, 1);
+            normalColor = color;// ?? new Color(0.6f, 0, 0, 1);
             button = gameObject.AddComponent<Button>();
 
             //convert color to HSV to allow easier lighten/darken operation

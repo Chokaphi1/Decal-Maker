@@ -2,6 +2,7 @@
 source/PathHelper.cs
 source/TextPanel.cs
 source/MyButton.cs
+source/PopupPanel.cs
 source/PanelBase.cs
 source/UIPanelBase.cs
 source/DecalPanel.cs

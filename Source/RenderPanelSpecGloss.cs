@@ -29,7 +29,7 @@ namespace VAM_Decal_Maker
         {
             if (DecalPanels.Count == 0)
             {
-               ResetGPUTexture(MaterialSlot, TextureSlot);
+                ResetGPUTexture(MaterialSlot, TextureSlot);
             }
             else
             {

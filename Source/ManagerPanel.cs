@@ -19,9 +19,8 @@ namespace VAM_Decal_Maker
         public new GameObject gameObject { get { return ImagePanel.gameObject; } }
         private Button Button { get { return ImagePanel.Button; } }
         //controls the addition and removal of all panels
-        public  List<DecalPanel> DecalPanels { get; set; } = new List<DecalPanel>();
+        public List<DecalPanel> DecalPanels { get; set; } = new List<DecalPanel>();
         private List<DecalPanel> TempDecalPanels { get; set; } = new List<DecalPanel>();
-        private string _lastDir = "Custom/Atom/Person/Textures";
         private static Random rd = new Random();
         private RenderPanelBase renderPanel { get; set; }
         private RenderPanelNormal SelfNormRenderPanel { get; set; }
@@ -39,6 +38,11 @@ namespace VAM_Decal_Maker
         //events from decal/image panel
         private void DecalPanelEvent(object o, PanelEventArgs e)
         {
+            //is this event for us. Has a decal panel and it is one of ours
+            if (e.DecalPanel == null || !DecalPanels.Contains(e.DecalPanel))
+            {
+                return;
+            }
             int currentIndex;
             int newIndex;
             if (renderPanel != null)
@@ -86,14 +90,23 @@ namespace VAM_Decal_Maker
                         renderPanel.IsDirty = true;
                         break;
 
-                    case EventEnum.ImagePanelPathChanged:
-                        if (_lastDir == null)
-                        {
-                            _lastDir = "Custom/Atom/Person/Textures";
-                        }
+                    case EventEnum.DecalPanelButtonCOPY:
+                        d = AddDecalPanels();
+                        //Copy Function to copy source data to target
+                        e.DecalPanel.CopyDataToTargetPanel(d);
+                        currentIndex = e.DecalPanel.gameObject.transform.GetSiblingIndex();
+                        newIndex = currentIndex + 1;
+                        RepositionDecalPanel(d, newIndex);
+                        renderPanel.IsDirty = true;
+                        break;
 
+                    case EventEnum.ImagePanelPathChanged:
+                        // JSONStorableUrl lastImageDir = DM.GetUrlJSONParam("LastImageDir");
+                        //lastImageDir.FileBrowse();
+
+                        string lastDir = DM.GetUrlParamValue("LastImageDir");
                         List<ShortCut> shortCuts = FileManagerSecure.GetShortCutsForDirectory("Custom/Atom/Person/Textures/", false, true, true, false);
-                        SuperController.singleton.GetMediaPathDialog(new FileBrowserCallback(e.DecalPanel.BrowserCallBack), "", _lastDir, true, true, false, null, false, shortCuts);
+                        SuperController.singleton.GetMediaPathDialog(new FileBrowserCallback(e.DecalPanel.BrowserCallBack), "", lastDir, true, true, false, null, false, shortCuts);
 
                         break;
 
@@ -116,15 +129,16 @@ namespace VAM_Decal_Maker
         }
 
         //events from Core/General events
-        public override void CoreEvent(object o, PanelEventArgs e)
+        public void CoreEvent(object o, PanelEventArgs e)
         {
-            // SuperController.LogError("CORE EVENT " + e.EventName);
+            //SuperController.LogError("CORE EVENT " + e.EventName + " " + o.ToString());
             switch (e.EventName)
             {   //set Torso as active slot
                 case EventEnum.CoreSetupFinished:
                     if (TextureSlot == BodyRegionEnum.Torso)
                     {
-                        DM.OnCoreChange(this, new PanelEventArgs(EventEnum.ManagerPanelSelection, this));
+                        //set the torso UI of each as selection on each UI
+                        RaiseCoreEvent(this, new PanelEventArgs(EventEnum.ManagerPanelSelection, this));
                     }
                     break;
 
@@ -138,10 +152,10 @@ namespace VAM_Decal_Maker
                         //DeregisterDAZCharacterTextureControl();
                         //RegisterDAZCharacterTextureControl();
                     }
-                        UpdateSkinImage();
+                    UpdateSkinImage();
                     renderPanel.IsDirty = true;
                     break;
-       
+
                 case EventEnum.ToggleGenitalCutout:
                     if (MaterialSlot == MatSlotEnum.DecalTex && TextureSlot == BodyRegionEnum.Genitals)
                     {
@@ -156,8 +170,22 @@ namespace VAM_Decal_Maker
                     }
                     break;
 
-                case EventEnum.ManagerPanelSelection:
+                case EventEnum.ManagerPanelButtonADD:
+                    if (e.ManagerPanel == this)
+                    {
+                        AddDecalPanels();
+                        //UI may not have the tab selected so sync
                         UpdateSelection(e);
+                    }
+                    break;
+
+                case EventEnum.ManagerPanelButtonCLOSE:
+                    if (e.ManagerPanel == this)
+                        RemoveDecalPanel();
+                    break;
+
+                case EventEnum.ManagerPanelSelection:
+                    UpdateSelection(e);
                     break;
 
                 case EventEnum.CoreRestoreFromJSON:
@@ -179,6 +207,28 @@ namespace VAM_Decal_Maker
                 case EventEnum.CoreRemoveTempPanels:
                     DM.StartCoroutine(RemoveTempDecalPanels());
                     break;
+
+                case EventEnum.DecalPanelColor:
+
+                    //return;
+                    bool isUpdated = false;
+                    foreach (DecalPanel d in DecalPanels)
+                    {   //if not event from us, our ID is set and we are same ID
+                        if (d != e.DecalPanel && d.linkedPanelID != "*" && d.linkedPanelID == e.DecalPanel.linkedPanelID)
+                        {   //we need to copy data and not trigger a EventEnum.DecalPanelColor event to avoid loop
+                            //SuperController.LogError("Copy Data from panel" + e.DecalPanel.RandomName + " To panel " + d.RandomName);
+                            d.CopyDataFromTargetPanel(e.DecalPanel, false);
+                            //tell material to update
+                            d.UnifiedImagePanelColor(false);
+                            isUpdated = true;
+                        }
+                    }
+                    if (isUpdated)
+                        //SuperController.LogError("render is dirty"); 
+                        renderPanel.IsDirty = true;
+                    break;
+
+
             }
         }
 
@@ -198,7 +248,7 @@ namespace VAM_Decal_Maker
         }
         //need to turn our texture and mat enums into VAM equiv strings
         private string ConvertToVAMName(string convert)
-        { 
+        {
             switch (convert)
             {
                 default:
@@ -223,20 +273,20 @@ namespace VAM_Decal_Maker
             }
         }
 
-        void UrlCallBackDecal(JSONStorableString s)
+        private void UrlCallBackDecal(JSONStorableString s)
         {
-            SuperController.LogError(DateTime.Now + " UrlCallBackDecal " + MaterialSlot + TextureSlot);
-            if (s.val != String.Empty)
+            //SuperController.LogError(DateTime.Now + " UrlCallBackDecal " + MaterialSlot + TextureSlot);
+            if (s.val != string.Empty)
             {
                 DecalPanel d = AddDecalPanels();
                 d.RestoreImageFromJSON(s.val);
             }
         }
 
-        void UrlCallBack(JSONStorableString s)
+        private void UrlCallBack(JSONStorableString s)
         {
-            SuperController.LogError(DateTime.Now + " UrlCallBack " + MaterialSlot + TextureSlot);
-            DM.QueueCharacterChanged();  
+            //SuperController.LogError(DateTime.Now + " UrlCallBack " + MaterialSlot + TextureSlot);
+            DM.QueueCharacterChanged();
         }
 
         private void RegisterDAZCharacterTextureControl()
@@ -273,7 +323,8 @@ namespace VAM_Decal_Maker
         }
 
         private void DeregisterDAZCharacterTextureControl()
-        {   if(this.jsnDecalURL != null)
+        {
+            if (this.jsnDecalURL != null)
                 this.jsnDecalURL.setJSONCallbackFunction -= UrlCallBackDecal;
 
             if (this.jsnURL != null)
@@ -305,7 +356,7 @@ namespace VAM_Decal_Maker
             // watch.Stop();
             //SuperController.LogError(MaterialSlot + " " +TextureSlot + " Skin panel took " + watch.ElapsedMilliseconds);
         }
-       
+
         public ManagerPanel(Decal_Maker DM = null, Color? color = null, string TextureSlot = null, string MaterialSlot = null, bool IsNormalMap = false, bool linear = false) : base(DM, 300)
         {
             base.MaterialSlot = MaterialSlot;
@@ -353,14 +404,16 @@ namespace VAM_Decal_Maker
             }
             renderPanel.DecalPanels = DecalPanels;
 
-            DM.CoreEvent += CoreEvent;
+            //register two listner functions one for general and one to monitor child panels
+            RegisterForCoreEvents(DecalPanelEvent);
+            RegisterForCoreEvents(CoreEvent);
 
             SelfNormRenderPanel = new RenderPanelNormal(base.DM, base.MaterialSlot, base.TextureSlot);
             //reuse button from image panel
             Button.onClick.AddListener(
                 () =>
                 {
-                    DM.OnCoreChange(this, new PanelEventArgs(EventEnum.ManagerPanelSelection, this));
+                    RaiseCoreEvent(this, new PanelEventArgs(EventEnum.ManagerPanelSelection, this));
                 }
             );
         }
@@ -403,6 +456,10 @@ namespace VAM_Decal_Maker
             if (saveJSON["Path"] != null)
             {
                 d.RestoreImageFromJSON(saveJSON["Path"]);
+            }
+            if (saveJSON["LinkID"] != null)
+            {
+                d.linkedPanelID = saveJSON["LinkID"];
             }
 
             d.gameObject.transform.localPosition += new Vector3(270, 0, 0);
@@ -450,7 +507,6 @@ namespace VAM_Decal_Maker
             {
                 TempDecalPanels.Add(d);
             }
-            d.DecalPanelUpdate += DecalPanelEvent;
         }
 
         //unique ID to use for jsonparam
@@ -492,7 +548,7 @@ namespace VAM_Decal_Maker
         }
 
 
-        public void RemoveDecalPanel()
+        private void RemoveDecalPanel()
         {
             if (DecalPanels.Any())
             {
@@ -507,7 +563,6 @@ namespace VAM_Decal_Maker
             bool removed = DecalPanels.Remove(d);
             if (removed)
             {
-                d.DecalPanelUpdate -= DecalPanelEvent;
                 d.OnDestroy();
                 GameObject.Destroy(d.gameObject);
                 ResizeSpacers(-300);

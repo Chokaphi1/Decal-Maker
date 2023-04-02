@@ -1,9 +1,6 @@
 ﻿using MVR.FileManagementSecure;
-using SimpleJSON;
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
 
 
 namespace VAM_Decal_Maker
@@ -75,7 +72,7 @@ namespace VAM_Decal_Maker
             {
                 return null;
             }
-           
+
             int num = findExtension(path);
             if (num > -1 && num < path.Length - 1)
             {
@@ -188,6 +185,6 @@ namespace VAM_Decal_Maker
         }
 
     }
-    
+
 }
 

@@ -1,17 +1,17 @@
-﻿using SimpleJSON;
+﻿using MVR.FileManagementSecure;
+using SimpleJSON;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using MVR.FileManagementSecure;
-using static VAM_Decal_Maker.PathHelper;
-using System.Collections;
 using UnityEngine;
+using static VAM_Decal_Maker.PathHelper;
 
 namespace VAM_Decal_Maker
 {
     public class PrefabCreator
     {
-        Decal_Maker DM;
+        private Decal_Maker DM;
         private bool waitingOnScreenShot;
 
         public PrefabCreator(Decal_Maker DM)
@@ -24,7 +24,7 @@ namespace VAM_Decal_Maker
             if (jc == null)
                 return null;
 
-            if(jc.HasKey("Path"))
+            if (jc.HasKey("Path"))
                 return jc;
 
             JSONNode[] a = jc.Childs.Where(x => x.GetType() == typeof(JSONArray)).ToArray();
@@ -32,14 +32,14 @@ namespace VAM_Decal_Maker
             {
                 foreach (JSONNode v in a2)
                 {
-                    if(v.GetType() == typeof(JSONClass))
-                    return Recursive((JSONClass) v);
+                    if (v.GetType() == typeof(JSONClass))
+                        return Recursive((JSONClass)v);
                 }
             }
 
             JSONNode[] c = jc.Childs.Where(x => x.GetType() == typeof(JSONClass)).ToArray();
             foreach (JSONClass c2 in c)
-            { 
+            {
                 return Recursive(c2);
             }
             return null;
@@ -50,8 +50,8 @@ namespace VAM_Decal_Maker
         {
             string dirPath = FileManagerSecure.GetDirectoryName(prefabExample);
 
-            string[] allFiles =  FileManagerSecure.GetFiles(sourceImages);
-            
+            string[] allFiles = FileManagerSecure.GetFiles(sourceImages);
+
             List<string> imageFiles = allFiles.Where(x => x.EndsWith("png", StringComparison.OrdinalIgnoreCase) || x.EndsWith("jpg", StringComparison.OrdinalIgnoreCase)).ToList();
 
             List<string> prefabs = new List<string>();
@@ -81,7 +81,7 @@ namespace VAM_Decal_Maker
             DM.StartCoroutine(ScreenShotTask(prefabs));
         }
 
-        IEnumerator ScreenShotTask(List<string> prefabs)
+        private IEnumerator ScreenShotTask(List<string> prefabs)
         {
             foreach (string prefab in prefabs)
             {
@@ -89,10 +89,10 @@ namespace VAM_Decal_Maker
                 //wait for clothing and any texture loads are finished
                 yield return new WaitWhile(() => SuperController.singleton.loadingIcon.gameObject.activeSelf);
                 yield return new WaitForSeconds(1);
-               
+
                 SuperController.singleton.DoSaveScreenshot(prefab, ScreenShotCall);
                 waitingOnScreenShot = true;
-          
+
                 SuperController.singleton.SetLeftSelect();
                 yield return new WaitWhile(() => waitingOnScreenShot);
                 DM.CallAction("ClearAll");
@@ -100,7 +100,7 @@ namespace VAM_Decal_Maker
 
             }
 
-            
+
             yield break;
         }
 

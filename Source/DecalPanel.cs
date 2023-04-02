@@ -1,7 +1,6 @@
 ﻿using MVR.FileManagementSecure;
 using SimpleJSON;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -19,12 +18,16 @@ namespace VAM_Decal_Maker
         public MyButton Down { get; private set; }
         public MyButton Open { get; private set; }
         public MyButton Close { get; private set; }
-        public Color Color { get { return ImagePanel.color; } }
+        public MyButton Copy { get; private set; }
         public JSONStorableColor jcolor { get; private set; }
+        public JSONStorableFloat sliderJSF { get; private set; }
         public UIDynamicSlider sliderDynamic { get; private set; }
+        public string linkedPanelID { get { return linkJSSC.val; } set { linkJSSC.val = value; } }
+
         public Action<string> LastDir;
-        public event EventHandler<PanelEventArgs> DecalPanelUpdate;
-        public string ImagePathText { get { return texturePathTextPanel.text; } set { texturePathTextPanel.text = value; } }
+
+        private string _imagePath = "";
+        public string ImagePathText { get { return _imagePath; } set { _imagePath = value; texturePathTextPanel.text = FormattPathText(value); } }
 
         private string _randomName;
         public string RandomName
@@ -48,11 +51,12 @@ namespace VAM_Decal_Maker
         private TextPanel texturePathTextPanel;
         private TextPanel randonNameTextPanel;
         private Image panelImage;
-        private JSONStorableFloat sliderJSF;
         private JSONStorableAction videoPlayPauseJSA;
         private JSONStorableFloat videoFrameJSF;
         private JSONStorableFloat videoTimeJSF;
+        private JSONStorableStringChooser linkJSSC;
 
+        private static List<string> linkedLayerChoices = new List<string>() { "*", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20" };
 
 
         private float width;
@@ -61,11 +65,11 @@ namespace VAM_Decal_Maker
         //event Handler for this class
         private void OnPanelChange(PanelEventArgs e)
         {
-            if (DecalPanelUpdate != null)
-            {
-                DecalPanelUpdate(this, e);
-            }
-           
+            RaiseCoreEvent(this, e);
+        }
+        private void CoreEvents(object o, PanelEventArgs e)
+        {
+
         }
 
         //events from image panel
@@ -84,7 +88,7 @@ namespace VAM_Decal_Maker
                         DM.DeregisterFloat(videoFrameJSF);
                         DM.DeregisterFloat(videoTimeJSF);
                     }
-                    
+
                     break;
                 case EventEnum.ImagePanelVideoLoad:
                     //register video controls
@@ -98,9 +102,9 @@ namespace VAM_Decal_Maker
             }
             if (e.EventName == EventEnum.ImagePanelVidePrepared)
             {
-                
+
             }
-            
+
             //add reference to this panel and pass on. Manager Panel handles operations
             e.DecalPanel = this;
             OnPanelChange(e);
@@ -108,6 +112,8 @@ namespace VAM_Decal_Maker
 
         public override void OnDestroy()
         {
+            UnRegisterForCoreEvents(CoreEvents);
+            ImagePanel.ImagePanelUpdate -= ImagePanelEventProcessor;
             //ImagePanel.OnDestroy();
             DM.DeregisterFloat(sliderJSF);
             DM.DeregisterColor(jcolor);
@@ -144,9 +150,9 @@ namespace VAM_Decal_Maker
             ImagePanel = new ImagePanel(DM, null, TextureSlot, MaterialSlot, IsNormalMap, linear);
             ImagePanel.gameObject.transform.SetParent(gameObject.transform, false);
             ImagePanel.gameObject.transform.localPosition = new Vector3(panelImage.rectTransform.rect.xMax - ImagePanel.rectTransform.rect.xMax - 10, 0, 0);
-            //register for event
+            //register for event, this is the local image panels events
             ImagePanel.ImagePanelUpdate += ImagePanelEventProcessor;
-
+            RegisterForCoreEvents(CoreEvents);
             //create name and slider
             //must be before text and color selector so it layers properly
             AddSlider();
@@ -169,7 +175,7 @@ namespace VAM_Decal_Maker
             UIDynamicColorPicker colorPickerDynamic = colorPickerPrefab.GetComponent<UIDynamicColorPicker>();
             colorPickerDynamic.showLabel = false;
             HSVColor hsvc = HSVColorPicker.RGBToHSV(1f, 1f, 1f);
-            jcolor = new JSONStorableColor(CreateJSN("Color"), hsvc, ImagePanel.SetColor);
+            jcolor = new JSONStorableColor(CreateJSN("Color"), hsvc, UnifiedImagePanelColor);
             jcolor.isStorable = false;
             jcolor.colorPicker = colorPickerDynamic.colorPicker;
             DM.RegisterColor(jcolor);
@@ -178,54 +184,29 @@ namespace VAM_Decal_Maker
             videoFrameJSF = new JSONStorableFloat(CreateJSN("Step to Frame"), 0, VideoPlaySeekFrame, 0, 0);
             videoTimeJSF = new JSONStorableFloat(CreateJSN("Step to Time"), 0, VideoPlaySeekTime, 0, 0);
 
+            //buttons can not parent one another, child buttons set hit detection to parent buttons leading to all being lit
+            //https://answers.unity.com/questions/1783936/a-button-inside-of-a-button-is-highlighting-parent.html
+            Vector2 buttonSize = new Vector2(60, 60);
+            Copy = new MyButton("", new Color(.156f, .746f, .176f), gameObject.transform, new Vector3(-165, 50, 0), buttonSize);
+            Texture2D CopyIcon = DM.GetResource("Custom/Scripts/Chokaphi/VAM_Decal_Maker/Icons/Copy-Icon.jpg");
+            Copy.SetIcon(CopyIcon);
 
-            Up = new MyButton("", new Color(0.9f, 0.6f, 0.1f));
-            Up.gameObject.transform.SetParent(gameObject.transform, false);
-            Up.gameObject.transform.localPosition = new Vector2(-100, 50);
+            Open = new MyButton("", new Color(.7f, .7f, .7f), gameObject.transform, new Vector3(-100, 50, 0), buttonSize);
+            Texture2D OpenIcon = DM.GetResource("Custom/Scripts/Chokaphi/VAM_Decal_Maker/Icons/Open-Icon.jpg");
+            Open.SetIcon(OpenIcon);
 
-            RectTransform upRT = Up.gameObject.GetComponent<RectTransform>();
-            upRT.sizeDelta = new Vector2(60, 60);
-
-            byte[] tmppng = FileManagerSecure.ReadAllBytes(GetPackagePath(DM) + "Custom/Scripts/Chokaphi/VAM_Decal_Maker/Icons/Up-Icon.jpg");
-            Texture2D UpIcon = new Texture2D(1, 1, TextureFormat.RGBA32, false);
-            UpIcon.LoadImage(tmppng);
+            Up = new MyButton("", new Color(0.9f, 0.6f, 0.1f), gameObject.transform, new Vector3(-35, 50, 0), buttonSize);
+            Texture2D UpIcon = DM.GetResource("Custom/Scripts/Chokaphi/VAM_Decal_Maker/Icons/Up-Icon.jpg");
             Up.SetIcon(UpIcon);
 
-            Down = new MyButton("", new Color(0.1f, 0.6f, 0.8f));
-            Down.gameObject.transform.SetParent(gameObject.transform, false);
-            Down.gameObject.transform.localPosition = Up.gameObject.transform.localPosition + new Vector3(65, 0, 0);
-
-            RectTransform dwnRT = Down.gameObject.GetComponent<RectTransform>();
-            dwnRT.sizeDelta = new Vector2(60, 60);
-
-            tmppng = FileManagerSecure.ReadAllBytes(GetPackagePath(DM) + "Custom/Scripts/Chokaphi/VAM_Decal_Maker/Icons/Down-Icon.jpg");
-            Texture2D DownIcon = new Texture2D(1, 1, TextureFormat.RGBA32, false);
-            DownIcon.LoadImage(tmppng);
+            Down = new MyButton("", new Color(0.1f, 0.6f, 0.8f), gameObject.transform, new Vector3(30, 50, 0), buttonSize);
+            Texture2D DownIcon = DM.GetResource("Custom/Scripts/Chokaphi/VAM_Decal_Maker/Icons/Down-Icon.jpg");
             Down.SetIcon(DownIcon);
 
-            Close = new MyButton("", null, transform);
-            //Close.transform.SetParent(transform, false);
-            Close.transform.localPosition = Down.transform.localPosition + new Vector3(160, 0, 0);
-
-            RectTransform clsRT = Close.gameObject.GetComponent<RectTransform>();
-            clsRT.sizeDelta = new Vector2(60, 60);
-
-            tmppng = FileManagerSecure.ReadAllBytes(GetPackagePath(DM) + "Custom/Scripts/Chokaphi/VAM_Decal_Maker/Icons/Close-Icon.jpg");
-            Texture2D CloseIcon = new Texture2D(1, 1, TextureFormat.RGBA32, false);
-            CloseIcon.LoadImage(tmppng);
+            Close = new MyButton("", new Color(0.6f, 0, 0, 1), gameObject.transform, new Vector3(180, 50, 0), buttonSize);
+            Texture2D CloseIcon = DM.GetResource("Custom/Scripts/Chokaphi/VAM_Decal_Maker/Icons/Close-Icon.jpg");
             Close.SetIcon(CloseIcon);
 
-            Open = new MyButton("", new Color(.7f, .7f, .7f));
-            Open.gameObject.transform.SetParent(gameObject.transform, false);
-            Open.gameObject.transform.localPosition = Up.gameObject.transform.localPosition + new Vector3(-65, 0, 0);
-
-            RectTransform opnRT = Open.gameObject.GetComponent<RectTransform>();
-            opnRT.sizeDelta = new Vector2(60, 60);
-
-            tmppng = FileManagerSecure.ReadAllBytes(GetPackagePath(DM) + "Custom/Scripts/Chokaphi/VAM_Decal_Maker/Icons/Open-Icon.jpg");
-            Texture2D OpenIcon = new Texture2D(1, 1, TextureFormat.RGBA32, false);
-            OpenIcon.LoadImage(tmppng);
-            Open.SetIcon(OpenIcon);
 
             //Panel Name Text
             randonNameTextPanel = new TextPanel(gameObject, Vector3.zero, "")
@@ -271,6 +252,37 @@ namespace VAM_Decal_Maker
                 OnPanelChange(new PanelEventArgs(EventEnum.DecalPanelButtonAdd, this));
             });
 
+            Copy.button.onClick.AddListener(() =>
+            {
+                OnPanelChange(new PanelEventArgs(EventEnum.DecalPanelButtonCOPY, this));
+            });
+
+            linkJSSC = new JSONStorableStringChooser("LinkpanelSelection", linkedLayerChoices, "*", "", (string x) => { RaiseCoreEvent(this, new PanelEventArgs(EventEnum.DecalPanelLinkChanged, this)); });
+
+            PopupPanel popupPanel = new PopupPanel(DM, linkJSSC);
+            popupPanel.transform.SetParent(transform, false);
+            popupPanel.transform.localPosition = new Vector2(95, 50);
+
+
+        }
+        //copy source to target, name remains unique
+        public void CopyDataToTargetPanel(DecalPanel target, bool image = true)
+        {
+            target.linkJSSC.SetVal(this.linkJSSC.val);
+            target.jcolor.valNoCallback = this.jcolor.val;
+            target.sliderDynamic.slider.value = this.sliderDynamic.slider.value;
+            if (image)
+                target.BrowserCallBack(this.ImagePathText);
+        }
+
+        public void CopyDataFromTargetPanel(DecalPanel target, bool image = true)
+        {
+            this.linkJSSC.SetVal(target.linkJSSC.val);
+            this.jcolor.valNoCallback = target.jcolor.val;
+            this.sliderJSF.valNoCallback = target.sliderJSF.val;
+
+            if (image)
+                BrowserCallBack(target.ImagePathText);
         }
 
         public void VideoLoaded(VideoPlayer videoPlayer)
@@ -285,9 +297,9 @@ namespace VAM_Decal_Maker
                 videoTimeJSF.max = seconds;
 
             }
-            catch(Exception e)
+            catch (Exception e)
             {
-                SuperController.LogError( e.Message);
+                SuperController.LogError(e.Message);
             }
 
         }
@@ -304,7 +316,7 @@ namespace VAM_Decal_Maker
         }
 
         private void VideoPlayPause()
-        { 
+        {
             if (ImagePanel.videoPlayer.isPlaying)
             {
                 ImagePanel.videoPlayer.Pause();
@@ -337,11 +349,28 @@ namespace VAM_Decal_Maker
             }
             else
             {
-                sliderJSF = new JSONStorableFloat(CreateJSN(), 1, ImagePanel.SetAlpha, 0, 1);
+                sliderJSF = new JSONStorableFloat(CreateJSN(), 1, UnifiedImagePanelColor, 0, 1);
                 CreateSlider(sliderJSF, 0, 1, 1, "Alpha value");
             }
             sliderJSF.isStorable = false;
             DM.RegisterFloat(sliderJSF);
+        }
+        //Merge callbacks from slider and color picker to a color value
+        private void UnifiedImagePanelColor(JSONStorableFloat jfloat)
+        {
+            UnifiedImagePanelColor();
+        }
+
+        private void UnifiedImagePanelColor(JSONStorableColor jColor)
+        {
+            UnifiedImagePanelColor();
+        }
+
+        public void UnifiedImagePanelColor(bool sendEvent = true)
+        {
+            Color newColor = Color.HSVToRGB(jcolor.val.H, jcolor.val.S, jcolor.val.V);
+            newColor.a = sliderJSF.val;
+            ImagePanel.UpdateMaterialColor(newColor, sendEvent);
         }
 
         private UIDynamicSlider CreateSlider(JSONStorableFloat action, int min = 0, int max = 1, int value = 1, string title = "")
@@ -376,19 +405,23 @@ namespace VAM_Decal_Maker
             return sliderDynamic;
         }
 
-        public void SetPathText(string text)
+        public string FormattPathText(string text)
         {
             //count char back to first slash
             int lastIndex = text.LastIndexOf("/");
             if (text.Length > 55 && lastIndex >= 0)
             {
                 string endText = text.Substring(lastIndex);
+                //if file name is super long clip it
+                if (endText.Length > 40)
+                    endText = text.Substring(lastIndex, 40);
+
                 int leftover = 55 - endText.Length + 3;
                 string startText = text.Substring(0, leftover);
 
                 text = startText + "..." + endText;
             }
-            ImagePathText = text;
+            return text;
         }
 
         //Used to correct paths in JSON to available VAR files until VAM expands FileManagerSecure
@@ -470,15 +503,19 @@ namespace VAM_Decal_Maker
         }
 
         public void BrowserCallBack(string path)
-        {  
+        {
             if (string.IsNullOrEmpty(path))
             {
-                SetPathText("");
+                ImagePathText = "";
             }
             else
             {
-                SetPathText(path);
+                string dir = FileManagerSecure.GetDirectoryName(path);
+                DM.SetUrlParamValue("LastImageDir", dir);
+
+                ImagePathText = path;
                 ImagePanel.LoadResourceFile(path);
+
             }
         }
 
@@ -488,10 +525,9 @@ namespace VAM_Decal_Maker
             decalSaveJSON["H"].AsFloat = jcolor.val.H;
             decalSaveJSON["S"].AsFloat = jcolor.val.S;
             decalSaveJSON["V"].AsFloat = jcolor.val.V;
-            decalSaveJSON["Alpha"].AsFloat = ImagePanel.sliderValue;
+            decalSaveJSON["Alpha"].AsFloat = sliderJSF.val;
             decalSaveJSON["RandomName"] = RandomName;
-
-
+            decalSaveJSON["LinkID"] = linkedPanelID;
 
             //SuperController.LogError("ALPHA IS " + ImagePanel.sliderValue);
             //jcolor.StoreJSON(decalSaveJSON, true, true, true);

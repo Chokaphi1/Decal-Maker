@@ -1,6 +1,4 @@
-﻿using SimpleJSON;
-using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace VAM_Decal_Maker
@@ -15,6 +13,13 @@ namespace VAM_Decal_Maker
         public ManagerPanel GenitalPanel { get; private set; }
         public ManagerPanel FacelPanel { get; private set; }
         public ManagerPanel LimbsPanel { get; private set; }
+
+        public ManagerPanel IrisPanel { get; private set; }
+        public ManagerPanel ScleraPanel { get; private set; }
+        public ManagerPanel PupilPanel { get; private set; }
+        public ManagerPanel CorneaPanel { get; private set; }
+        public ManagerPanel ReflectionPanel { get; private set; }
+
 
         //events from Core
         private void CorePanelEvent(object o, PanelEventArgs e)
@@ -34,8 +39,29 @@ namespace VAM_Decal_Maker
                         ActivateWindow(true);
                     else
                         ActivateWindow(false);
-                    
                     break;
+
+                case EventEnum.DecalPanelLinkChanged:
+                    if (e.DecalPanel.linkedPanelID == "*")
+                        return;
+                    if (e.DecalPanel.MaterialSlot != MaterialSlot)
+                        return;
+
+                    //if one panel already has this link id then copy data from it
+                    List<ManagerPanel> managers = ManagerPanels.Values.ToList();
+                    foreach (ManagerPanel m in managers)
+                    {
+                        foreach (DecalPanel existing in m.DecalPanels)
+                        {
+                            if (e.DecalPanel != existing && existing.linkedPanelID == e.DecalPanel.linkedPanelID)
+                            {
+                                existing.CopyDataToTargetPanel(e.DecalPanel, false);
+                                return;
+                            }
+                        }
+                    }
+                    break;
+
             }
         }
 
@@ -58,8 +84,14 @@ namespace VAM_Decal_Maker
             CreatePanelBackground(width, height, color);
             SetLayout(250, 250);
 
-            AddButton.button.onClick.AddListener(() => { AddDecalPanel(); });
-            RemoveButton.button.onClick.AddListener(RemoveDecalPanel);
+            AddButton.button.onClick.AddListener(() =>
+            {
+                RaiseCoreEvent(this, new PanelEventArgs(EventEnum.ManagerPanelButtonADD, ActivePanel));
+            });
+            RemoveButton.button.onClick.AddListener(() =>
+            {
+                RaiseCoreEvent(this, new PanelEventArgs(EventEnum.ManagerPanelButtonCLOSE, ActivePanel));
+            });
 
             //CreateManagerPanels();
 
@@ -88,7 +120,45 @@ namespace VAM_Decal_Maker
 
 
             ActivePanel = TorsoPanel;
-            ManagerPanels = new Dictionary<string, ManagerPanel>() { { BodyRegionEnum.Torso, TorsoPanel }, { BodyRegionEnum.Genitals, GenitalPanel }, { BodyRegionEnum.Face, FacelPanel }, { BodyRegionEnum.Limbs, LimbsPanel } };
+            ManagerPanels = new Dictionary<string, ManagerPanel>() {
+                { BodyRegionEnum.Torso, TorsoPanel },
+                { BodyRegionEnum.Genitals, GenitalPanel },
+                { BodyRegionEnum.Face, FacelPanel },
+                { BodyRegionEnum.Limbs, LimbsPanel }
+            };
+        }
+
+        public void CreateManagerEyePanels()
+        {
+            SetLayout(200, 200);
+            //Torso panel
+            IrisPanel = new ManagerPanel(DM, null, BodyRegionEnum.EyeIris, MaterialSlot, IsNormalMap, linear);
+            IrisPanel.gameObject.transform.SetParent(gameObject.transform, false);
+
+            //Genital panel
+            ScleraPanel = new ManagerPanel(DM, null, BodyRegionEnum.EyeSclera, MaterialSlot, IsNormalMap, linear);
+            ScleraPanel.gameObject.transform.SetParent(gameObject.transform, false);
+
+            //Face panel
+            PupilPanel = new ManagerPanel(DM, null, BodyRegionEnum.EyePupil, MaterialSlot, IsNormalMap, linear);
+            PupilPanel.gameObject.transform.SetParent(gameObject.transform, false);
+
+            //Limbs panel
+            ReflectionPanel = new ManagerPanel(DM, null, BodyRegionEnum.EyeReflection, MaterialSlot, IsNormalMap, linear);
+            ReflectionPanel.gameObject.transform.SetParent(gameObject.transform, false);
+
+            //cornea
+            CorneaPanel = new ManagerPanel(DM, null, BodyRegionEnum.EyeCornea, MaterialSlot, IsNormalMap, linear);
+            CorneaPanel.gameObject.transform.SetParent(gameObject.transform, false);
+
+            ManagerPanels = new Dictionary<string, ManagerPanel>()
+            {
+                { BodyRegionEnum.EyeIris, IrisPanel },
+                { BodyRegionEnum.EyeSclera, ScleraPanel },
+                { BodyRegionEnum.EyePupil, PupilPanel },
+                { BodyRegionEnum.EyeReflection, ReflectionPanel },
+                { BodyRegionEnum.EyeCornea, CorneaPanel }
+            };
         }
 
         public void ActivateWindow(bool value)
@@ -98,17 +168,6 @@ namespace VAM_Decal_Maker
             AddButton.gameObject.SetActive(value);
             RemoveButton.gameObject.SetActive(value);
             ActivePanel.ActivateWindow(value);
-        }
-
-        public DecalPanel AddDecalPanel()
-        {
-            DecalPanel d = ActivePanel.AddDecalPanels();
-            return d;
-        }
-
-        public void RemoveDecalPanel()
-        {
-            ActivePanel.RemoveDecalPanel();
         }
 
     }

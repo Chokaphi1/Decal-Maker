@@ -1,5 +1,4 @@
-﻿using MVR.FileManagementSecure;
-using System;
+﻿using System;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,8 +9,6 @@ namespace VAM_Decal_Maker
     public class ImagePanel : ImagePanelBase
     {
 
-        //We now have multiple slider types Alpha and NormalMap so centralize the value
-        public float sliderValue { get; private set; } = 1f;
         public bool ImageLoading { get; private set; }
         public string Path { get; set; }
 
@@ -89,42 +86,40 @@ namespace VAM_Decal_Maker
 
         public void SetNormalScale(float value)
         {
-            sliderValue = value;
             material.SetFloat("_NormalScale", value);
             //stupid but makes the UI texture update
             image.enabled = false;
             image.enabled = true;
-          
+
             OnImagePanelChange(new PanelEventArgs(EventEnum.ImagePanelNormalSliderChange, material));
         }
 
         public void SetSpecularScale(float value)
         {
-            sliderValue = value;
             material.SetFloat("_Smoothness", value);
             image.enabled = false;
             image.enabled = true;
-            
+
             OnImagePanelChange(new PanelEventArgs(EventEnum.ImagePanelSpecSliderChange, material));
         }
 
-        public void SetAlpha(float value)
-        {
-            sliderValue = value;
-            Color newAlpha = this.color;// image.material.GetColor("_Color");
-            newAlpha.a = value;
+        //public void SetAlpha(float value)
+        //{
+        //    sliderValue = value;
+        //    Color newAlpha = this.color;// image.material.GetColor("_Color");
+        //    newAlpha.a = value;
 
-            UpdateMaterialColor(newAlpha);
-        }
+        //    UpdateMaterialColor(newAlpha);
+        //}
 
-        public void SetColor(JSONStorableColor jcolor)
-        {
-            Color newColor = jcolor.colorPicker.currentColor;
-            //use alpha from slider
-            newColor.a = this.color.a;
+        //public void SetColor(JSONStorableColor jcolor)
+        //{
+        //    Color newColor = jcolor.colorPicker.currentColor;
+        //    //use alpha from slider
+        //    newColor.a = this.color.a;
 
-            UpdateMaterialColor(newColor);
-        }
+        //    UpdateMaterialColor(newColor);
+        //}
         //cleanup
         public override void OnDestroy()
         {
@@ -144,20 +139,20 @@ namespace VAM_Decal_Maker
             base.OnDestroy();
         }
 
-        private void UpdateMaterialColor(Color color)
+        public void UpdateMaterialColor(Color color, bool sendEvent = true)
         {
             this.color = color;
-            UpdateMaterialColor();
+            UpdateMaterialColor(sendEvent);
         }
 
-        private void UpdateMaterialColor()
+        private void UpdateMaterialColor(bool sendEvent = true)
         {
             //The Mask object causes a modified material to be returned so it is no longer rendering the texture that you are updating with the "material" property.
             image.materialForRendering.SetColor("_Color", color);
             //update unmasked material as well
             image.material.SetColor("_Color", color);
-
-            OnImagePanelChange(new PanelEventArgs(EventEnum.DecalPanelColor, color));
+            if (sendEvent)
+                OnImagePanelChange(new PanelEventArgs(EventEnum.DecalPanelColor, color));
         }
 
         private void UpdateMaterialTexture(Texture2D tex)
@@ -171,7 +166,7 @@ namespace VAM_Decal_Maker
         public void HideTexture()
         {
             material.SetColor("_Color", Color.white);
-      
+
             //UnityEngine.Object.Destroy(image.material);
             //image.material = new Material(Shader.Find("UI/Default-Overlay"));
 
@@ -181,7 +176,7 @@ namespace VAM_Decal_Maker
         //Use existing texture
         public override void ApplyTexture(Texture2D texture)
         {
-           // Material material = new Material(Shader.Find("UI/Default-Overlay"));
+            // Material material = new Material(Shader.Find("UI/Default-Overlay"));
             material.SetTexture("_MainTex", texture);
             //UnityEngine.Object.Destroy(image.material);
             //Resources.UnloadAsset(image.material);
@@ -222,14 +217,14 @@ namespace VAM_Decal_Maker
         {
             if (videoPlayer.isPrepared)
                 videoPlayer.Stop();
-           
+
             string ext = PathHelper.GetExtension(filePath);
 
             if (PathHelper.videoExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
             {
                 OnImagePanelChange(new PanelEventArgs(EventEnum.ImagePanelVideoLoad));
                 LoadVideo(filePath);
-                
+
             }
             else if (PathHelper.imageExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
             {
@@ -259,7 +254,7 @@ namespace VAM_Decal_Maker
             ImageLoaderThreaded.singleton.QueueImage(queuedImage);
             ImageLoading = true;
         }
-        
+
 
         private void LoadVideo(string filePath)
         {
@@ -289,7 +284,7 @@ namespace VAM_Decal_Maker
         private void FrameUpdateEvent(VideoPlayer source, long frameIdx)
         {
             Graphics.CopyTexture(videoTexture, mainTexture);
-            OnImagePanelChange(new PanelEventArgs(EventEnum.ImagePanelVideoFrameUpdate, source ));
+            OnImagePanelChange(new PanelEventArgs(EventEnum.ImagePanelVideoFrameUpdate, source));
         }
 
     }

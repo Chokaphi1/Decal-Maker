@@ -38,11 +38,15 @@ namespace VAM_Decal_Maker
         public const string DecalPanelButtonDOWN = "DecalPanel-Move-DOWN";
         public const string DecalPanelButtonCLOSE = "DecalPanel Close Button";
         public const string DecalPanelButtonAdd = "DecalPanel-CREATE";
+        public const string DecalPanelButtonCOPY = "DecalPanel-Duplicate";
         public const string DecalPanelDELETE = "DecalPanel-DELETE";
+        public const string DecalPanelLinkChanged = "DecalPanel-LinkChanged";
 
         //ManagerPanel
         public const string ManagerPanelSelection = "New Texture Region Selected";
         public const string ManagerPanelRestoreActive = "Restore last active panel";
+        public const string ManagerPanelButtonADD = "Add new panel after last panel";
+        public const string ManagerPanelButtonCLOSE = "Remove last panel";
 
         //HeaderPanel
         public const string HeaderPanelSelection = "New Material Region Selected";
@@ -72,9 +76,15 @@ namespace VAM_Decal_Maker
         public const string Limbs = "limbs";
         public const string Genitals = "genitals";
 
-        public static readonly List<string> Values = new List<string>() { Torso, Face, Limbs, Genitals };
-    }
+        public const string EyeReflection = "relflection";
+        public const string EyePupil = "pupil";
+        public const string EyeIris = "iris";
+        public const string EyeCornea = "cornea";
+        public const string EyeSclera = "whites";
 
+        public static readonly List<string> Values = new List<string>() { Torso, Face, Limbs, Genitals };
+
+    }
 
 
 }

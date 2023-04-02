@@ -1,8 +1,6 @@
-using MVR.FileManagementSecure;
 using System.Collections;
-using UnityEngine;
 using System.Linq;
-using static VAM_Decal_Maker.PathHelper;
+using UnityEngine;
 
 namespace VAM_Decal_Maker
 {
@@ -13,11 +11,7 @@ namespace VAM_Decal_Maker
         public RenderPanelNormal(Decal_Maker DM, string MaterialSlot, string TextureSlot) : base(DM, MaterialSlot, TextureSlot)
         {
             material = new Material(DM._customNormShader);
-
-            byte[] tmppng = FileManagerSecure.ReadAllBytes(GetPackagePath(DM) + "Custom/Scripts/Chokaphi/VAM_Decal_Maker/Cutout/Normal.png");
-            _normTex = new Texture2D(1, 1, TextureFormat.RGBA32, false, true);
-            _normTex.LoadImage(tmppng);
-
+            _normTex = DM.GetResource("Custom/Scripts/Chokaphi/VAM_Decal_Maker/Cutout/Normal.png", true);
             tempTexture = new Texture2D(4096, 4096, TextureFormat.RGBA32, false, true);
         }
 
@@ -27,12 +21,6 @@ namespace VAM_Decal_Maker
             {
                 GameObject.Destroy(_normTex);
                 Resources.UnloadAsset(_normTex);
-            }
-
-            if (BlankNormalTex != null)
-            {
-                GameObject.Destroy(BlankNormalTex);
-                Resources.UnloadAsset(BlankNormalTex);
             }
 
             base.OnDestroy();
@@ -58,7 +46,7 @@ namespace VAM_Decal_Maker
                 int count = 0;
                 ZeroMaterial();
                 //if we have a normal material on Base model use it as norm0
-                Texture2D mainTex = DM.GetOriginalGPUTexture(_TextureIndex[TextureSlot].FirstOrDefault(),  MaterialSlot);
+                Texture2D mainTex = DM.GetOriginalGPUTexture(_TextureIndex[TextureSlot].FirstOrDefault(), MaterialSlot);
                 if (mainTex != null)
                 {
                     material.SetTexture("_BumpMap" + count, mainTex);
@@ -68,7 +56,7 @@ namespace VAM_Decal_Maker
                 bool multiRender = false;
                 foreach (DecalPanel d in DecalPanels)
                 {
-                    material.SetFloat("_BumpMapScale" + count, d.ImagePanel.sliderValue);
+                    material.SetFloat("_BumpMapScale" + count, d.sliderJSF.val);
                     material.SetTexture("_BumpMap" + count, d.ImagePanel.mainTexture);
 
                     count++;

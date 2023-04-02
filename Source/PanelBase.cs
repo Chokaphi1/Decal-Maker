@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 using UnityEngine.UI;
 
 namespace VAM_Decal_Maker
@@ -15,9 +16,19 @@ namespace VAM_Decal_Maker
         public bool IsNormalMap { get; set; }
         public bool linear { get; set; }
 
-        public virtual void CoreEvent(object o, PanelEventArgs e)
-        {
 
+        protected void RegisterForCoreEvents(EventHandler<PanelEventArgs> eventHandler)
+        {
+            DM.CoreEvent += eventHandler;
+        }
+        protected void UnRegisterForCoreEvents(EventHandler<PanelEventArgs> eventHandler)
+        {
+            DM.CoreEvent -= eventHandler;
+        }
+
+        protected virtual void RaiseCoreEvent(object o, PanelEventArgs e)
+        {
+            DM.OnCoreChange(o, e);
         }
 
         public PanelBase(Decal_Maker DM)
@@ -25,8 +36,8 @@ namespace VAM_Decal_Maker
             this.DM = DM;
             DM.OnUpDateAction += Update;
             DM.OnDestroyAction += OnDestroy;
+            //DM.CoreEvent += CoreEvent;
         }
-
 
         protected virtual void Update()
         {
@@ -53,9 +64,12 @@ namespace VAM_Decal_Maker
 
         protected virtual void SetLayout(float width, float height)
         {
-            GridLayoutGroup glg = gameObject.AddComponent<GridLayoutGroup>();
+            GridLayoutGroup glg = gameObject.GetComponent<GridLayoutGroup>();
+            if (glg == null)
+            {
+                glg = gameObject.AddComponent<GridLayoutGroup>();
+            }
             glg.cellSize = new Vector2(width, height);
-
             glg.constraint = GridLayoutGroup.Constraint.FixedRowCount;
             glg.constraintCount = 1;
             glg.padding = new RectOffset(10, 10, 10, 10);

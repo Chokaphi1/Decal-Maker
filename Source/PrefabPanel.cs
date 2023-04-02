@@ -63,7 +63,7 @@ namespace VAM_Decal_Maker
 
             ImagePanel.Button.onClick.AddListener(() =>
             {
-                DM.OnCoreChange(this, new PanelEventArgs(EventEnum.CoreTempDecalToPerm));
+                RaiseCoreEvent(this, new PanelEventArgs(EventEnum.CoreTempDecalToPerm));
             });
 
             GameObject imageObject = new GameObject("text background");
@@ -114,7 +114,7 @@ namespace VAM_Decal_Maker
         private void ItemValueChanged(string value)
         {
             selectedItem = value;
-            DM.OnCoreChange(this, new PanelEventArgs(EventEnum.CoreRemoveTempPanels));
+            RaiseCoreEvent(this, new PanelEventArgs(EventEnum.CoreRemoveTempPanels));
             if (value == "")
             {
                 ResetItem();
@@ -132,7 +132,7 @@ namespace VAM_Decal_Maker
 
         private void ResetItem()
         {
-            DM.OnCoreChange(this, new PanelEventArgs(EventEnum.CoreRemoveTempPanels));
+            RaiseCoreEvent(this, new PanelEventArgs(EventEnum.CoreRemoveTempPanels));
             ImagePanel.HideTexture();
             DM.PresetLoad(GetPackagePath(DM) + "Custom/Scripts/Chokaphi/VAM_Decal_Maker/Icons/EMPTY.dsgn.DecalMakerPreset.json", true);
         }

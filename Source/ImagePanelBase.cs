@@ -8,7 +8,7 @@ namespace VAM_Decal_Maker
         protected Image image;
         public Button Button { get; private set; }
         public Material material { get; private set; }
-                
+
         public ImagePanelBase(Decal_Maker DM, string TextureSlot, string MaterialSlot, bool IsNormalMap, bool linear) : base(DM)
         {
             this.MaterialSlot = MaterialSlot;
@@ -20,10 +20,11 @@ namespace VAM_Decal_Maker
             {
                 material = new Material(DM._customUINormalMapShader);
             }
-            else if (linear)
-            {
-                material = new Material(DM._customSpecGlossShader);
-            }
+            //else if (linear)
+            //{
+            //Shader not not implemented yet
+            //    material = new Material(DM._customUISpecGlossShader);
+            //}
             else
             {   //new Material(Graphic.defaultGraphicMaterial.shader);
                 material = new Material(Shader.Find("UI/Default-Overlay"));

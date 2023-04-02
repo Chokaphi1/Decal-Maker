@@ -20,14 +20,24 @@ namespace VAM_Decal_Maker
             {BodyRegionEnum.Torso, new int[]{15,18,19,20,21,27,29}},
             {BodyRegionEnum.Face, new int[]{2,5,11} },
             {BodyRegionEnum.Limbs, new int[]{0,12,14,16,17,22,23}},
-            {BodyRegionEnum.Genitals, new int[]{28}}
+            {BodyRegionEnum.Genitals, new int[]{28}},
+            {BodyRegionEnum.EyeReflection, new int[]{1}},
+            {BodyRegionEnum.EyePupil, new int[]{4}},
+            {BodyRegionEnum.EyeIris, new int[]{8}},
+            {BodyRegionEnum.EyeCornea, new int[]{10}},
+            {BodyRegionEnum.EyeSclera, new int[]{13}}
         };
         private static readonly Dictionary<string, int[]> maleTextureIndex = new Dictionary<string, int[]>()
         {
             {BodyRegionEnum.Torso, new int[]{15,16,19,20,21,22,30,32}},
             {BodyRegionEnum.Face, new int[]{2,5,11}},
             {BodyRegionEnum.Limbs, new int[]{0,12,14,17,18,23,24}},
-            {BodyRegionEnum.Genitals, new int[]{28,29}}
+            {BodyRegionEnum.Genitals, new int[]{28,29}},
+            {BodyRegionEnum.EyeReflection, new int[]{1}},
+            {BodyRegionEnum.EyePupil, new int[]{4}},
+            {BodyRegionEnum.EyeIris, new int[]{8}},
+            {BodyRegionEnum.EyeCornea, new int[]{10}},
+            {BodyRegionEnum.EyeSclera, new int[]{13}}
         };
         public Dictionary<string, int[]> _TextureIndex
         {
@@ -99,7 +109,7 @@ namespace VAM_Decal_Maker
             // Reset the active RenderTexture
             RenderTexture.active = previous;
             RenderTexture.ReleaseTemporary(tmp);
-            
+
             return true;
         }
 
@@ -190,7 +200,7 @@ namespace VAM_Decal_Maker
         //    // Set the current RenderTexture to the temporary one we created
         //    RenderTexture.active = tmp;
 
-        //    Texture2D newTexture = TempManager.TempTexture2D(texture.width, texture.height, TextureFormat.RGBA32, false, linear);
+        //    Texture2D newTexture = new Texture2D(texture.width, texture.height, TextureFormat.RGBA32, false, linear);
 
         //    newTexture.ReadPixels(new Rect(0, 0, tmp.width, tmp.height), 0, 0);
         //    newTexture.Apply();
