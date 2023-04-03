@@ -182,7 +182,8 @@ namespace VAM_Decal_Maker
         public Texture2D GetResource(string path, bool linear = false)
         {
             string cachepath = path + linear.ToString();
-            if (resourceTextures.TryGetValue(cachepath, out Texture2D texture))
+            Texture2D texture;
+            if (resourceTextures.TryGetValue(cachepath, out texture))
             {
                 return texture;
             }
